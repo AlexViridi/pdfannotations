@@ -4,7 +4,8 @@ import uuid
 from starlette.responses import JSONResponse
 from fastapi import FastAPI, File, UploadFile
 from loguru import logger
-
+from typing import List, Optional
+from pydantic import BaseModel
 
 # from flask import Flask, request, jsonify
 
@@ -12,18 +13,37 @@ from loguru import logger
 # initialize the Fast API Application.
 app = FastAPI(debug=True)
 
+class Annotationjob(BaseModel):
+    id: uuid.UUID | None = None
+    explanations: list = None
 
-#Example data
-jobs = [{"id": 0, "documents": ["file1", "file2", "file3"], "searchstrings": ["text1", "text2", "text3"]}, 
-{"id": 1, "documents": ["file4", "file5", "file6"], "searchstrings": ["text4", "text5", "text6"]}, 
-{"id": 2, "documents": ["file7", "file8", "file9"], "searchstrings": ["text7", "text8", "text9"]}]
 
 
 def _find_next_id():
     return max(job["id"] for job in jobs) + 1
 
-@app.post("/embedd_documents")
-async def upload_documents(files: List[UploadFile] = File(...), aa_or_openai: str = "openai", token: Optional[str] = None) -> JSONResponse:
+def create_tmp_folder() -> str:
+    """Creates a temporary folder for files to store.
+    Returns:
+        str: The directory name.
+    """
+    # Create a temporary folder to save the files
+    tmp_dir = f"tmp_{str(uuid.uuid4())}"
+    os.makedirs(tmp_dir)
+    logger.info(f"Created new folder {tmp_dir}.")
+    return tmp_dir
+
+#Temporarily:
+jobs = []
+
+@app.post("/annotationjobs", status_code=201)
+async def create_annotationjob(job: Annotationjob) -> JSONResponse:   
+    job.id = uuid.uuid4()
+    jobs.append(job)
+    return job
+
+@app.post("/embedd_documents", status_code=201)
+async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
     """Uploads multiple documents to the backend.
     Args:
         files (List[UploadFile], optional): Uploaded files. Defaults to File(...).
@@ -47,8 +67,8 @@ async def upload_documents(files: List[UploadFile] = File(...), aa_or_openai: st
 
         with open(os.path.join(tmp_dir, file_name), "wb") as f:
             f.write(await file.read())
-
-    embedd_documents_wrapper(folder_name=tmp_dir, aa_or_openai=aa_or_openai, token=token)
+    #To-Do: Enqueue documents for processing
+    #embedd_documents_wrapper(folder_name=tmp_dir, aa_or_openai=aa_or_openai, token=token)
     return JSONResponse(content={"message": "Files received and saved.", "filenames": file_names})
 
 # @app.get("/annotationsjobs")
