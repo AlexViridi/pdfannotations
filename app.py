@@ -2,20 +2,39 @@
 import os
 import uuid
 from starlette.responses import JSONResponse
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Path
 from loguru import logger
-from typing import List, Optional
-from pydantic import BaseModel
+from typing import List, Optional, Annotated
+from pydantic import BaseModel, ValidationError, validator
 
-# from flask import Flask, request, jsonify
-
-# app = Flask(__name__)
 # initialize the Fast API Application.
 app = FastAPI(debug=True)
 
+
+class StatusEnum(IntEnum):
+    new = 1
+    working = 2
+    done = 3
+    error = 4
+
+class Documentdetails(BaseModel):
+    originalname: str
+    newname: str
+    id: uuid.UUID
+    status: StatusEnum
+    errordetails: str
+
+
+
 class Annotationjob(BaseModel):
     id: uuid.UUID | None = None
-    explanations: list = None
+    explanations: list
+
+    @validator('explanations')
+    def explanation_must_contain_at_least_one_Value(cls, thelist):
+        if thelist is None or len(thelist) < 1:
+            raise ValueError('explanations must contain at least one value ')
+        return thelist
 
 
 
@@ -37,15 +56,24 @@ def create_tmp_folder() -> str:
 jobs = []
 
 @app.post("/annotationjobs", status_code=201)
-async def create_annotationjob(job: Annotationjob) -> JSONResponse:   
+async def create_annotationjob(job: Annotationjob) -> JSONResponse:
+    """Creates an annotation job.
+    Args:
+        -
+    Request-Body:
+        at least one aa explanation to search for    
+    Returns:
+        JSONResponse: The response as JSON.
+    """   
     job.id = uuid.uuid4()
     jobs.append(job)
     return job
 
-@app.post("/embedd_documents", status_code=201)
-async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
-    """Uploads multiple documents to the backend.
+@app.post("/annotationjobs/{job_id}/documents", status_code=201)
+async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of the corresponding job for the documents")], files: List[UploadFile] = File(...)) -> JSONResponse:
+    """Uploads multiple documents to the backend and assigns them to the given job ID.
     Args:
+        job_id <Path_Parameter>: (uuid.UUID,  The ID of the corresponding job for the documents)
         files (List[UploadFile], optional): Uploaded files. Defaults to File(...).
     Returns:
         JSONResponse: The response as JSON.
@@ -66,6 +94,11 @@ async def upload_documents(files: List[UploadFile] = File(...)) -> JSONResponse:
             raise ValueError("Please provide a file to save.")
 
         with open(os.path.join(tmp_dir, file_name), "wb") as f:
+            details = Documentdetails
+            details.id = uuid.uuid4()
+            details.originalname = file_name
+            details.newname = os.path.splitext(file_name)[0] + '_anno' + os.path.splitext(file_name)[1]
+            details.status = new
             f.write(await file.read())
     #To-Do: Enqueue documents for processing
     #embedd_documents_wrapper(folder_name=tmp_dir, aa_or_openai=aa_or_openai, token=token)
