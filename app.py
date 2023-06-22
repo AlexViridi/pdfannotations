@@ -7,38 +7,11 @@ from loguru import logger
 from typing import List, Optional, Annotated
 from pydantic import BaseModel, ValidationError, validator
 from enum import IntEnum
+from annoclasses import StatusEnum, Documentdetails, Annotationjob
+from anno import *
 
 # initialize the Fast API Application.
 app = FastAPI(debug=True)
-
-
-class StatusEnum(IntEnum):
-    new = 1
-    working = 2
-    done = 3
-    error = 4
-
-class Documentdetails(BaseModel):
-    originalname: str
-    newname: str
-    id: uuid.UUID
-    status: StatusEnum
-    errordetails: str
-
-
-
-class Annotationjob(BaseModel):
-    #id: uuid.UUID | None = None
-    id: uuid.UUID = None
-    explanations: list
-    documentdetails: Optional[list[Documentdetails]]
-
-    @validator('explanations')
-    def explanation_must_contain_at_least_one_Value(cls, thelist):
-        if thelist is None or len(thelist) < 1:
-            raise ValueError('explanations must contain at least one value ')
-        return thelist
-
 
 
 def _find_next_id():
@@ -105,7 +78,7 @@ async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of th
             id=uuid.uuid4(),
             originalname=file_name,
             newname=os.path.splitext(file_name)[0] + '_anno' + os.path.splitext(file_name)[1],
-            status=1,
+            status=StatusEnum.new,
             errordetails=""
         )
         job.documentdetails.append(details)
@@ -114,7 +87,9 @@ async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of th
             f.write(await file.read())
     jobs[jobindex[0]] = job
     for doc in job.documentdetails:
-        doc.status = 2
+        doc.status = StatusEnum.working
+        annotated = await search_and_annotate_allpages(os.path.join(tmp_dir, doc.newname), job.explanations)
+        doc.status = annotated
         
     #To-Do: Enqueue documents for processing
     #embedd_documents_wrapper(folder_name=tmp_dir, aa_or_openai=aa_or_openai, token=token)
