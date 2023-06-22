@@ -31,6 +31,7 @@ class Annotationjob(BaseModel):
     #id: uuid.UUID | None = None
     id: uuid.UUID = None
     explanations: list
+    documentdetails: Optional[list[Documentdetails]]
 
     @validator('explanations')
     def explanation_must_contain_at_least_one_Value(cls, thelist):
@@ -84,7 +85,10 @@ async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of th
     tmp_dir = create_tmp_folder(job_id)
 
     file_names = []
-
+    jobindex = [i for i in range(len(jobs)) if jobs[i].id == job_id]
+    if jobindex is not None:
+        job = jobs[jobindex[0]]
+        job.documentdetails = []
     for file in files:
         file_name = file.filename
         file_names.append(file_name)
@@ -104,9 +108,14 @@ async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of th
             status=1,
             errordetails=""
         )
+        job.documentdetails.append(details)
         logger.info(f"Document details {details.json()}")
         with open(os.path.join(tmp_dir, details.newname), "wb") as f:
             f.write(await file.read())
+    jobs[jobindex[0]] = job
+    for doc in job.documentdetails:
+        doc.status = 2
+        
     #To-Do: Enqueue documents for processing
     #embedd_documents_wrapper(folder_name=tmp_dir, aa_or_openai=aa_or_openai, token=token)
     return JSONResponse(content={"message": "Files received and saved.", "filenames": file_names})
