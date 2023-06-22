@@ -6,6 +6,7 @@ from fastapi import FastAPI, File, UploadFile, Path
 from loguru import logger
 from typing import List, Optional, Annotated
 from pydantic import BaseModel, ValidationError, validator
+from enum import IntEnum
 
 # initialize the Fast API Application.
 app = FastAPI(debug=True)
