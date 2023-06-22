@@ -28,7 +28,8 @@ class Documentdetails(BaseModel):
 
 
 class Annotationjob(BaseModel):
-    id: uuid.UUID | None = None
+    #id: uuid.UUID | None = None
+    id: uuid.UUID = None
     explanations: list
 
     @validator('explanations')
@@ -42,13 +43,14 @@ class Annotationjob(BaseModel):
 def _find_next_id():
     return max(job["id"] for job in jobs) + 1
 
-def create_tmp_folder() -> str:
+def create_tmp_folder(job_id) -> str:
     """Creates a temporary folder for files to store.
     Returns:
         str: The directory name.
     """
     # Create a temporary folder to save the files
-    tmp_dir = f"tmp_{str(uuid.uuid4())}"
+    #tmp_dir = f"tmp_{str(uuid.uuid4())}"
+    tmp_dir = f"tmp_{str(job_id)}"
     os.makedirs(tmp_dir)
     logger.info(f"Created new folder {tmp_dir}.")
     return tmp_dir
@@ -79,7 +81,7 @@ async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of th
     Returns:
         JSONResponse: The response as JSON.
     """
-    tmp_dir = create_tmp_folder()
+    tmp_dir = create_tmp_folder(job_id)
 
     file_names = []
 
@@ -94,12 +96,16 @@ async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of th
         if file_name is None:
             raise ValueError("Please provide a file to save.")
 
-        with open(os.path.join(tmp_dir, file_name), "wb") as f:
-            details = Documentdetails
-            details.id = uuid.uuid4()
-            details.originalname = file_name
-            details.newname = os.path.splitext(file_name)[0] + '_anno' + os.path.splitext(file_name)[1]
-            details.status = new
+        #with open(os.path.join(tmp_dir, file_name), "wb") as f:
+        details = Documentdetails(
+            id=uuid.uuid4(),
+            originalname=file_name,
+            newname=os.path.splitext(file_name)[0] + '_anno' + os.path.splitext(file_name)[1],
+            status=1,
+            errordetails=""
+        )
+        logger.info(f"Document details {details.json()}")
+        with open(os.path.join(tmp_dir, details.newname), "wb") as f:
             f.write(await file.read())
     #To-Do: Enqueue documents for processing
     #embedd_documents_wrapper(folder_name=tmp_dir, aa_or_openai=aa_or_openai, token=token)
@@ -108,16 +114,6 @@ async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of th
 # @app.get("/annotationsjobs")
 # def get_annotationsjobs():
 #     return jsonify(jobs)
-
-# @app.post("/annotationsjobs")
-# def create_job():
-#     if request.is_json:
-#         job = request.get_json()
-#         job["id"] = _find_next_id()
-#         jobs.append(job)
-#         return job, 201
-#     return {"error": "Request must be JSON"}, 415
-
 
 # @app.get("/annotationsjobs/<job_id>")
 # def get_annotationjob(job_id):
