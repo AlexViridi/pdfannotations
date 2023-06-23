@@ -8,9 +8,9 @@ from typing import List, Optional, Annotated
 class StatusEnum(IntEnum):
     new = 1
     working = 2
-    done_annotated = 3
-    done_nothing_found = 4
-    error = 5
+    done_not_annotated = 3
+    done_annotated = 4
+    error = 99
 
 class Documentdetails(BaseModel):
     originalname: str
