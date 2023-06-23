@@ -3,6 +3,8 @@ import os
 import uuid
 from starlette.responses import JSONResponse
 from fastapi import FastAPI, File, UploadFile, Path
+from fastapi.responses import FileResponse
+from fastapi.encoders import jsonable_encoder
 from loguru import logger
 from typing import List, Optional, Annotated
 from pydantic import BaseModel, ValidationError, validator
@@ -46,6 +48,17 @@ async def create_annotationjob(job: Annotationjob) -> JSONResponse:
     jobs.append(job)
     return job
 
+@app.get(" ")
+def get_jobs() -> JSONResponse:
+    """Returns json list of current jobs.
+    Args:
+        - 
+    Returns:
+        JSONResponse: The job list as JSON.
+    """   
+    json_compatible_item_data = jsonable_encoder(jobs)
+    return JSONResponse(json_compatible_item_data)
+
 @app.post("/annotationjobs/{job_id}/documents", status_code=201)
 async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of the corresponding job for the documents")], files: List[UploadFile] = File(...)) -> JSONResponse:
     """Uploads multiple documents to the backend and assigns them to the given job ID.
@@ -72,8 +85,11 @@ async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of th
 
         if file_name is None:
             raise ValueError("Please provide a file to save.")
+        
+        with open(os.path.join(tmp_dir, file_name), "wb") as f:
+            f.write(await file.read())
 
-        #with open(os.path.join(tmp_dir, file_name), "wb") as f:
+        #Create document details
         details = Documentdetails(
             id=uuid.uuid4(),
             originalname=file_name,
@@ -83,33 +99,28 @@ async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of th
         )
         job.documentdetails.append(details)
         logger.info(f"Document details {details.json()}")
-        with open(os.path.join(tmp_dir, details.newname), "wb") as f:
-            f.write(await file.read())
     jobs[jobindex[0]] = job
-    for doc in job.documentdetails:
-        doc.status = StatusEnum.working
-        annotated = await search_and_annotate_allpages(os.path.join(tmp_dir, doc.newname), job.explanations)
-        doc.status = annotated
-        
+    searchresult = search_and_annotate_allpages(job, tmp_dir)      
     #To-Do: Enqueue documents for processing
-    #embedd_documents_wrapper(folder_name=tmp_dir, aa_or_openai=aa_or_openai, token=token)
+    #To-Do: Bei Response-Code 201 muss die Antwort leer sein 
     return JSONResponse(content={"message": "Files received and saved.", "filenames": file_names})
 
-# @app.get("/annotationsjobs")
-# def get_annotationsjobs():
-#     return jsonify(jobs)
-
-# @app.get("/annotationsjobs/<job_id>")
-# def get_annotationjob(job_id):
-#     return jobs[int(job_id)]
-
-# @app.get("/annotationsjobs/<job_id>/documents")
-# def get_documents(job_id):
-#     if "documents" in jobs[int(job_id)]:
-#         docsarray = jobs[int(job_id)]["documents"]
-#         return docsarray
-#     return {"error": "No documents array found."}
-
-# @app.get("/annotationsjobs/<job_id>/documents/<doc_id>")
-# def get_document(job_id, doc_id):
-#     return jobs[int(job_id)].documents[int(doc_id)]
+@app.get("/annotationjobs/{job_id}/documents/{document_id}", response_class=FileResponse, status_code=200)
+def get_document(job_id: Annotated[uuid.UUID, Path(title="The ID of the job of the documents")], 
+document_id: Annotated[uuid.UUID, Path(title="The ID of the document to be retrieved")]):
+    """Sends a file to caller.
+    Args:
+        job_id <Path_Parameter>: (uuid.UUID,  The ID of the job of the documents)
+        document_id <Path_Parameter>: (uuid.UUID,  The ID of the document to be retrieved)
+    Returns:
+        File
+    """
+    #jobindex = next((x for x in jobs if x.id == job_id), None) #Find list element by value of class value
+    jobindex = next((x for x in range(len(jobs)) if jobs[x].id == job_id), None) #Find index of list element by value of class value
+    if jobindex is not None:
+        currentjob = jobs[jobindex]
+        documentindex = next((x for x in range(len(currentjob.documentdetails)) if currentjob.documentdetails[x].id == document_id), None) #Find list element by value of class value
+        if documentindex is not None:
+                return os.path.join(f"tmp_{str(job_id)}", currentjob.documentdetails[documentindex].newname)
+        raise ValueError("Document not found.")
+    raise ValueError("Job not found.")
