@@ -88,7 +88,15 @@ def delete_job_in_background(job_id):
 #Temporarily:
 jobs = []
 
-@app.post("/annotationjobs", status_code=201)
+@app.get("/")
+def read_root() -> str:
+    """Returns the welcome message.
+    Returns:
+        str: The welcome message.
+    """
+    return "Welcome to the PDF annotation backend!"
+
+@app.post("/annotationjobs")
 async def create_annotationjob(job: Annotationjob) -> JSONResponse:
     """Creates an annotation job.
     Args:
@@ -111,6 +119,7 @@ def get_jobs() -> JSONResponse:
     Returns:
         JSONResponse: The job list as JSON.
     """   
+    #activejobs = [i for i in range(len(jobs)) if jobs[i].status == job_id]
     json_compatible_item_data = jsonable_encoder(jobs)
     return JSONResponse(json_compatible_item_data) 
 
@@ -122,13 +131,13 @@ async def delete_job(job_id: Annotated[uuid.UUID, Path(title="The job ID to be d
     Returns:
         Status 202
     """
-    if is_valid_uuid(job_id):
-        jobindex = next((x for x in range(len(jobs)) if jobs[x].id == job_id), None)
-        if jobindex is not None:
-            background_tasks.add_task(delete_job_in_background, job_id)
-        else:
-            raise ValueError("Please provide a valid job id.")
-    raise ValueError("Job id isn't a valid UUID")
+    #if is_valid_uuid(job_id):
+    jobindex = next((x for x in range(len(jobs)) if jobs[x].id == job_id), None)
+    if jobindex is not None:
+        background_tasks.add_task(delete_job_in_background, job_id)
+    else:
+        raise ValueError("Please provide a valid job id.")
+    #raise ValueError("Job id isn't a valid UUID")
         
     
 
@@ -140,15 +149,15 @@ def get_documents_for_job(job_id: Annotated[uuid.UUID, Path(title="The ID of the
     Returns:
         JSONResponse: The response as JSON.
     """
-    if is_valid_uuid(job_id):
-        jobindex = next((x for x in range(len(jobs)) if jobs[x].id == job_id), None) #Find index of list element by value of class value
-        if jobindex is not None:
-            currentjob = jobs[jobindex]
-            json_compatible_item_data = jsonable_encoder(currentjob.documentdetails)
-            return JSONResponse(json_compatible_item_data)
-        else:
-            return JSONResponse('"message": "the job does not have any documents."')
-    raise ValueError("Please provide a valid UUID for Job ID")
+    #if is_valid_uuid(job_id):
+    jobindex = next((x for x in range(len(jobs)) if jobs[x].id == job_id), None) #Find index of list element by value of class value
+    if jobindex is not None:
+        currentjob = jobs[jobindex]
+        json_compatible_item_data = jsonable_encoder(currentjob.documentdetails)
+        return JSONResponse(json_compatible_item_data)
+    else:
+        return JSONResponse('"message": "the job does not exist."')
+    #raise ValueError("Please provide a valid UUID for Job ID")
 
 @app.post("/annotationjobs/{job_id}/documents", status_code=201)
 async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of the corresponding job for the documents")],
@@ -162,48 +171,50 @@ async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of th
         JSONResponse: The response as JSON.
     """
     tmp_dir = create_tmp_folder(job_id)
-    if is_valid_uuid(job_id):
-        file_names = []
-        jobindex = [i for i in range(len(jobs)) if jobs[i].id == job_id]
-        if jobindex is not None:
-            job = jobs[jobindex[0]]
-            job.documentdetails = []
-        for file in files:
-            file_name = file.filename
-            if os.path.splitext(file_name)[1] != "pdf":
-                raise ValueError("Please provide only PDF files.")
-            file_names.append(file_name)
+    #if is_valid_uuid(job_id):
+    file_names = []
+    jobindex = [i for i in range(len(jobs)) if jobs[i].id == job_id]
+    if jobindex is not None:
+        job = jobs[jobindex[0]]
+        job.documentdetails = []
+    for file in files:
+        file_name = file.filename
+        file_ext = os.path.splitext(file_name)[1]
+        logger.debug(f"the file extension is: {file_ext}")
+        if file_ext not in [".pdf", ".PDF"]:
+            raise ValueError("Please provide only PDF files.")
+        file_names.append(file_name)
 
-            # Save the file to the temporary folder
-            if tmp_dir is None or not os.path.exists(tmp_dir):
-                raise ValueError("Please provide a temporary folder to save the files.")
+        # Save the file to the temporary folder
+        if tmp_dir is None or not os.path.exists(tmp_dir):
+            raise ValueError("Please provide a temporary folder to save the files.")
 
-            if file_name is None:
-                raise ValueError("Please provide a file to save.")
-            
-            with open(os.path.join(tmp_dir, file_name), "wb") as f:
-                f.write(await file.read())
+        if file_name is None:
+            raise ValueError("Please provide a file to save.")
+        
+        with open(os.path.join(tmp_dir, file_name), "wb") as f:
+            f.write(await file.read())
 
-            if job.status == JobStatusEnum.empty:
-                job.status = JobStatusEnum.working
-            #Create document details
-            details = Documentdetails(
-                id=uuid.uuid4(),
-                originalname=file_name,
-                newname=os.path.splitext(file_name)[0] + '_anno' + os.path.splitext(file_name)[1],
-                status=StatusEnum.new,
-                errordetails=""
-                created=datetime.now()
-                changed=datetime.now()
-            )
-            job.documentdetails.append(details)
-            logger.info(f"Document details {details.json()}")
-        jobs[jobindex[0]] = job
-        #searchresult = search_and_annotate_allpages(job, tmp_dir)
-        background_tasks.add_task(search_and_annotate_allpages, job, tmp_dir)
-        #To-Do: Bei Response-Code 201 muss die Antwort leer sein 
-        return JSONResponse(content={"message": "Files received and saved.", "filenames": file_names})
-    raise ValueError("Please provide a valid UUID for Job ID")
+        if job.status == JobStatusEnum.empty:
+            job.status = JobStatusEnum.working
+        #Create document details
+        details = Documentdetails(
+            id=uuid.uuid4(),
+            originalname=file_name,
+            newname=os.path.splitext(file_name)[0] + '_anno' + os.path.splitext(file_name)[1],
+            status=StatusEnum.new,
+            errordetails="",
+            created=datetime.now(),
+            changed=datetime.now()
+        )
+        job.documentdetails.append(details)
+        logger.info(f"Document details {details.json()}")
+    jobs[jobindex[0]] = job
+    #searchresult = search_and_annotate_allpages(job, tmp_dir)
+    background_tasks.add_task(search_and_annotate_allpages, job, tmp_dir)
+    #To-Do: Bei Response-Code 201 muss die Antwort leer sein 
+    return JSONResponse(content={"message": "Files received and saved.", "filenames": file_names})
+    #raise ValueError("Please provide a valid UUID for Job ID")
 
 @app.get("/annotationjobs/{job_id}/documents/{document_id}", response_class=FileResponse, status_code=200)
 async def get_document(job_id: Annotated[uuid.UUID, Path(title="The ID of the job of the documents")], 
@@ -216,17 +227,17 @@ document_id: Annotated[uuid.UUID, Path(title="The ID of the document to be retri
         File
     """ 
     #jobindex = next((x for x in jobs if x.id == job_id), None) #Find list element by value of class value
-    if is_valid_uuid(job_id):
-        jobindex = next((x for x in range(len(jobs)) if jobs[x].id == job_id), None) #Find index of list element by value of class value
-        if jobindex is not None:
-            currentjob = jobs[jobindex]
-            if is_valid_uuid(document_id):
-                documentindex = next((x for x in range(len(currentjob.documentdetails)) if currentjob.documentdetails[x].id == document_id), None) #Find list element by value of class value
-                if documentindex is not None:
-                    if currentjob.documentdetails[documentindex].status == StatusEnum.done_annotated:
-                        return os.path.join(f"tmp_{str(job_id)}", currentjob.documentdetails[documentindex].newname)
-                    raise ValueError("There were no explanations found in the document, consequently, the document wasn't saved.")
-                raise ValueError("Document not found.")
-            raise ValueError("Please provide a valid UUID for Document ID")
-        raise ValueError("Job not found.")
-    raise ValueError("Please provide a valid UUID for Job ID")
+    #if is_valid_uuid(job_id):
+    jobindex = next((x for x in range(len(jobs)) if jobs[x].id == job_id), None) #Find index of list element by value of class value
+    if jobindex is not None:
+        currentjob = jobs[jobindex]
+        if is_valid_uuid(document_id):
+            documentindex = next((x for x in range(len(currentjob.documentdetails)) if currentjob.documentdetails[x].id == document_id), None) #Find list element by value of class value
+            if documentindex is not None:
+                if currentjob.documentdetails[documentindex].status == StatusEnum.done_annotated:
+                    return os.path.join(f"tmp_{str(job_id)}", currentjob.documentdetails[documentindex].newname)
+                raise ValueError("There were no explanations found in the document, consequently, the document wasn't saved.")
+            raise ValueError("Document not found.")
+        raise ValueError("Please provide a valid UUID for Document ID")
+    raise ValueError("Job not found.")
+    #raise ValueError("Please provide a valid UUID for Job ID")

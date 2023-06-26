@@ -37,7 +37,7 @@ class Annotationjob(BaseModel):
     explanations: list
     documentdetails: Optional[list[Documentdetails]]
     #To-Do: Status des Jobs
-    status: JobStatusEnum
+    status: JobStatusEnum = None
 
     @validator('explanations')
     def explanation_must_contain_at_least_one_Value(cls, thelist):
