@@ -17,10 +17,6 @@ from datetime import datetime
 # initialize the Fast API Application.
 app = FastAPI(debug=True)
 
-
-def _find_next_id():
-    return max(job["id"] for job in jobs) + 1
-
 def is_valid_uuid(uuid_to_test, version=4):
     """
     Check if uuid_to_test is a valid UUID.
@@ -231,13 +227,13 @@ document_id: Annotated[uuid.UUID, Path(title="The ID of the document to be retri
     jobindex = next((x for x in range(len(jobs)) if jobs[x].id == job_id), None) #Find index of list element by value of class value
     if jobindex is not None:
         currentjob = jobs[jobindex]
-        if is_valid_uuid(document_id):
-            documentindex = next((x for x in range(len(currentjob.documentdetails)) if currentjob.documentdetails[x].id == document_id), None) #Find list element by value of class value
-            if documentindex is not None:
-                if currentjob.documentdetails[documentindex].status == StatusEnum.done_annotated:
-                    return os.path.join(f"tmp_{str(job_id)}", currentjob.documentdetails[documentindex].newname)
-                raise ValueError("There were no explanations found in the document, consequently, the document wasn't saved.")
-            raise ValueError("Document not found.")
-        raise ValueError("Please provide a valid UUID for Document ID")
+        #if is_valid_uuid(document_id):
+        documentindex = next((x for x in range(len(currentjob.documentdetails)) if currentjob.documentdetails[x].id == document_id), None) #Find list element by value of class value
+        if documentindex is not None:
+            if currentjob.documentdetails[documentindex].status == StatusEnum.done_annotated:
+                return os.path.join(f"tmp_{str(job_id)}", currentjob.documentdetails[documentindex].newname)
+            raise ValueError("There were no explanations found in the document, consequently, the document wasn't saved.")
+        raise ValueError("Document not found.")
+        #raise ValueError("Please provide a valid UUID for Document ID")
     raise ValueError("Job not found.")
     #raise ValueError("Please provide a valid UUID for Job ID")
