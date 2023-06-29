@@ -5,6 +5,12 @@ import os
 from datetime import datetime
 
 def search_and_annotate_allpages(annotationjob: Annotationjob, tmp_path: str):
+    """Annotates all PDFs of an annotation-job with all found explanations.
+    Args:
+        annotationjob: Annotationjob 
+    Returns:
+        ./. (async)
+    """  
     for document in annotationjob.documentdetails:
         doc = fitz.open(os.path.join(tmp_path, document.originalname))
         document.status = StatusEnum.working
@@ -39,4 +45,3 @@ def search_and_annotate_allpages(annotationjob: Annotationjob, tmp_path: str):
         doc.close
     annotationjob.status = JobStatusEnum.done
     logger.debug('Job %s done.' % (str(annotationjob.id)))
-        #return True

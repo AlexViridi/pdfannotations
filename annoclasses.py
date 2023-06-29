@@ -24,7 +24,6 @@ class Documentdetails(BaseModel):
     id: uuid.UUID
     status: StatusEnum
     errordetails: str
-    #To-Do: Created at, changed at, Finished time stamps
     created: datetime = None
     changed: datetime = None
     finished: datetime = None
@@ -32,11 +31,9 @@ class Documentdetails(BaseModel):
 
 
 class Annotationjob(BaseModel):
-    #id: uuid.UUID | None = None
     id: uuid.UUID = None
     explanations: list
     documentdetails: Optional[list[Documentdetails]]
-    #To-Do: Status des Jobs
     status: JobStatusEnum = None
 
     @validator('explanations')
