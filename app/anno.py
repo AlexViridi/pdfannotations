@@ -1,5 +1,5 @@
 import fitz
-from annoclasses import StatusEnum, Documentdetails, Annotationjob, JobStatusEnum
+from app.annoclasses import StatusEnum, Documentdetails, Annotationjob, JobStatusEnum
 from loguru import logger
 import os
 from datetime import datetime

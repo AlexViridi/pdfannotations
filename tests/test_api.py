@@ -9,7 +9,7 @@ from loguru import logger
 import uuid
 from uuid import UUID
 
-from app import app, create_tmp_folder
+from app.main import create_tmp_folder, app
 
 client = TestClient(app)
 

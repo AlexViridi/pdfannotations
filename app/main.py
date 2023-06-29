@@ -1,4 +1,4 @@
-#app.py
+#main.py
 import os
 import uuid
 from uuid import UUID
@@ -10,8 +10,8 @@ from loguru import logger
 from typing import List, Optional, Annotated
 from pydantic import BaseModel, ValidationError, validator
 from enum import IntEnum
-from annoclasses import StatusEnum, Documentdetails, Annotationjob, JobStatusEnum
-from anno import *
+from app.annoclasses import StatusEnum, Documentdetails, Annotationjob, JobStatusEnum
+from app.anno import *
 from datetime import datetime
 
 # initialize the Fast API Application.
@@ -24,7 +24,7 @@ def create_tmp_folder(job_id) -> str:
         str: The directory name.
     """
     # Create a temporary folder to save the files
-     tmp_dir = f"tmp_{str(job_id)}"
+    tmp_dir = f"tmp_{str(job_id)}"
     os.makedirs(tmp_dir)
     logger.info(f"Created new folder {tmp_dir}.")
     return tmp_dir
