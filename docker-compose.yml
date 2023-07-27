@@ -1,0 +1,29 @@
+version: "3.7"
+
+# Common environment values
+x-environment: &default-tz-puid-pgid
+  TZ: $TZ
+  PUID: $PUID
+  PGID: $PGID
+
+# Proxy Network and Security
+x-network-and-security: &network-and-security
+  network_mode: "host"
+  security_opt:
+    - no-new-privileges:true
+
+# Keys common to some of the dependent services/apps
+x-common-keys-apps: &common-keys-apps
+  <<: *network-and-security
+  restart: unless-stopped
+
+services:
+  pdfannotations:
+    <<: *common-keys-apps # See EXTENSION FIELDS at the top
+    container_name: pdfannotations
+    image: "alexanderzielinski/pdfannotations:latest"
+    ports:
+      - "80:80"
+    environment:
+      <<: *default-tz-puid-pgid
+      FAST_API_DEBUG_MODE: False

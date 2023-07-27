@@ -1,15 +1,12 @@
 #main.py
 import os
 import uuid
-from uuid import UUID
 from starlette.responses import JSONResponse
 from fastapi import FastAPI, File, UploadFile, Path, BackgroundTasks
 from fastapi.responses import FileResponse
 from fastapi.encoders import jsonable_encoder
 from loguru import logger
-from typing import List, Optional, Annotated
-from pydantic import BaseModel, ValidationError, validator
-from enum import IntEnum
+from typing import List, Annotated
 from app.annoclasses import StatusEnum, Documentdetails, Annotationjob, JobStatusEnum
 from app.anno import *
 from datetime import datetime
@@ -31,30 +28,32 @@ def create_tmp_folder(job_id) -> str:
 
 def delete_job_in_background(job_id):
     jobindex = next((x for x in range(len(jobs)) if jobs[x].id == job_id), None)
-    if jobindex is not None:
-        currentjob = jobs[jobindex]
-        for document in currentjob.documentdetails:
-            if os.path.isfile(os.path.join(f"tmp_{str(job_id)}", document.originalname)) and document.status in [StatusEnum.done_annotated, StatusEnum.done_not_annotated, StatusEnum.error]:
-                try:
-                    os.remove(os.path.join(f"tmp_{str(job_id)}", document.originalname))
-                except:
-                    logger.info("The file %s is still in use and can't be removed currently.", document.originalname)
-                else:
-                    if document.status == StatusEnum.done_annotated:
-                        if os.path.isfile(os.path.join(f"tmp_{str(job_id)}", document.newname)):
-                            try:
-                                os.remove(os.path.join(f"tmp_{str(job_id)}", document.newname))
-                            except:
-                                logger.info("The file %s is still in use and can't be removed currently.", document.newname)
+    #if jobindex is not None: # Umdrehen und Fehler werden, "spart" einrücken
+    if jobindex is None:
+        logger.info("The job wasn't found, maybe it's already deleted?")
+        raise ValueError("Job not found.")
+    currentjob = jobs[jobindex]
+    for document in currentjob.documentdetails:
+        if os.path.isfile(os.path.join(f"tmp_{str(job_id)}", document.originalname)) and document.status in [StatusEnum.done_annotated, StatusEnum.done_not_annotated, StatusEnum.error]:
+            try:
+                os.remove(os.path.join(f"tmp_{str(job_id)}", document.originalname))
+            except:
+                logger.info("The file %s is still in use and can't be removed currently.", document.originalname)
+            else:
+                if document.status == StatusEnum.done_annotated:
+                    if os.path.isfile(os.path.join(f"tmp_{str(job_id)}", document.newname)):
                         try:
-                            os.rmdir(f"tmp_{str(job_id)}")
+                            os.remove(os.path.join(f"tmp_{str(job_id)}", document.newname))
                         except:
-                            logger.info("The directory %s can't be removed at the moment. Maybe it's not empty.", f"tmp_{str(job_id)}")
-                        else:
-                            jobs.pop(jobindex)
-                        
+                            logger.info("The file %s is still in use and can't be removed currently.", document.newname)
+                    try:
+                        os.rmdir(f"tmp_{str(job_id)}")
+                    except:
+                        logger.info("The directory %s can't be removed at the moment. Maybe it's not empty.", f"tmp_{str(job_id)}")
+                    else:
+                        jobs.pop(jobindex)
+                    
 
-#Temporarily:
 jobs = []
 
 @app.get("/")
@@ -173,8 +172,8 @@ async def upload_documents(job_id: Annotated[uuid.UUID, Path(title="The ID of th
         job.documentdetails.append(details)
         logger.info(f"Document details {details.json()}")
     jobs[jobindex[0]] = job
+    #assumption: one pdf at a time is processed, therefore one background task for all docs
     background_tasks.add_task(search_and_annotate_allpages, job, tmp_dir)
-    #To-Do: Bei Response-Code 201 muss die Antwort leer sein 
     return JSONResponse(content={"message": "Files received and saved.", "filenames": file_names})
 
 @app.get("/annotationjobs/{job_id}/documents/{document_id}", response_class=FileResponse, status_code=200)
@@ -189,13 +188,17 @@ document_id: Annotated[uuid.UUID, Path(title="The ID of the document to be retri
     """ 
     #jobindex = next((x for x in jobs if x.id == job_id), None) #Find list element by value of class value
     jobindex = next((x for x in range(len(jobs)) if jobs[x].id == job_id), None) #Find index of list element by value of class value
-    if jobindex is not None:
-        currentjob = jobs[jobindex]
-        documentindex = next((x for x in range(len(currentjob.documentdetails)) if currentjob.documentdetails[x].id == document_id), None) #Find list element by value of class value
-        if documentindex is not None:
-            if currentjob.documentdetails[documentindex].status == StatusEnum.done_annotated:
-                return os.path.join(f"tmp_{str(job_id)}", currentjob.documentdetails[documentindex].newname)
-            raise ValueError("There were no explanations found in the document, consequently, the document wasn't saved.")
+    #if jobindex is not None:
+    if jobindex is None:
+        raise ValueError("Job not found.")
+    currentjob = jobs[jobindex]
+    documentindex = next((x for x in range(len(currentjob.documentdetails)) if currentjob.documentdetails[x].id == document_id), None) #Find list element by value of class value
+    #if documentindex is not None:
+    if documentindex is None:
         raise ValueError("Document not found.")
-    raise ValueError("Job not found.")
+    if currentjob.documentdetails[documentindex].status == StatusEnum.done_annotated:
+        return os.path.join(f"tmp_{str(job_id)}", currentjob.documentdetails[documentindex].newname)
+    raise ValueError("There were no explanations found in the document, consequently, the document wasn't saved.")
+    
+    
 

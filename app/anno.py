@@ -16,7 +16,14 @@ def search_and_annotate_allpages(annotationjob: Annotationjob, tmp_path: str):
         document.status = StatusEnum.working
         document.changed = datetime.now()
         pagenumber = 1
-        requires_save = False
+        requires_save = False   
+        text = chr(12).join([page.get_text() for page in doc])
+        if text is None:
+            logger.info(f"The file {document.originalname} doesn't seem to contain text.")
+            document.status = StatusEnum.error
+            document.errordetails = f"The file {document.originalname} doesn't seem to contain text."
+            document.changed = datetime.now()
+            raise ValueError("No text found in PDF.")
         for page in doc:
             for explanation in annotationjob.explanations:
                 rl = page.search_for(explanation, quads=True)  # need a quad b/o tilted text
