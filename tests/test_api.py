@@ -32,7 +32,7 @@ def test_create_tmp_folder():
 @pytest.mark.asyncio
 async def test_job_creation(jobid):
     """Testing job creation"""
-    jsonbody = {"explanations": ['Die Aleph Alpha Produktreihe „Luminous“ bietet verschiedene Funktionalitäten der natürlichen Sprachverarbeitung ohne nutzerspezifisches Training'], "documentdetails": []} 
+    jsonbody = {"explanations": ['imperdiet enim'], "documentdetails": []} 
     async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
         response = await ac.post("/annotationjobs", json=jsonbody)
     assert response.status_code == 200
@@ -42,7 +42,7 @@ async def test_job_creation(jobid):
     logger.info(f"Current value of pytest.my_jobid is {str(pytest.my_jobid)}")
     pytest.my_jobid = probejson["id"]
     logger.info(f"New value of pytest.my_jobid is {str(pytest.my_jobid)}")
-    assert probejson["explanations"] == ['Die Aleph Alpha Produktreihe „Luminous“ bietet verschiedene Funktionalitäten der natürlichen Sprachverarbeitung ohne nutzerspezifisches Training']
+    assert probejson["explanations"] == ['imperdiet enim']
     assert probejson["documentdetails"] == []
     assert probejson["status"] == 1
     

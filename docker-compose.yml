@@ -1,6 +1,6 @@
 version: "3.7"
 
-# Proxy Network and Security
+# Host Network and Security
 x-network-and-security: &network-and-security
   network_mode: "host"
   security_opt:
