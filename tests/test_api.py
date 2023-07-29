@@ -49,8 +49,7 @@ async def test_job_creation(jobid):
 def test_get_jobs_still_empty(jobid):
     response = client.get("/annotationjobs")
     assert response.status_code == 200
-    #Marc:
-    #assert response.json() == {"id": str(pytest.my_jobid), "explanations": ['Die Aleph Alpha Produktreihe „Luminous“ bietet verschiedene Funktionalitäten der natürlichen Sprachverarbeitung ohne nutzerspezifisches Training'], "documentdetails": [], "status": 1 }
+    
 
 @pytest.mark.asyncio
 async def test_document_upload(jobid):
@@ -82,7 +81,7 @@ async def test_get_document(jobid):
                 "/annotationjobs/" + str(job_id) + "/documents/" + str(documentid)
             )
     assert doc_response.status_code == 200  
-    #Marc: Wie kann ich im Response das Dokument extrahieren? --> Body? / Response?
+
      
 
 @pytest.mark.asyncio

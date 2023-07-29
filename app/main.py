@@ -28,7 +28,6 @@ def create_tmp_folder(job_id) -> str:
 
 def delete_job_in_background(job_id):
     jobindex = next((x for x in range(len(jobs)) if jobs[x].id == job_id), None)
-    #if jobindex is not None: # Umdrehen und Fehler werden, "spart" einrücken
     if jobindex is None:
         logger.info("The job wasn't found, maybe it's already deleted?")
         raise ValueError("Job not found.")
@@ -188,12 +187,10 @@ document_id: Annotated[uuid.UUID, Path(title="The ID of the document to be retri
     """ 
     #jobindex = next((x for x in jobs if x.id == job_id), None) #Find list element by value of class value
     jobindex = next((x for x in range(len(jobs)) if jobs[x].id == job_id), None) #Find index of list element by value of class value
-    #if jobindex is not None:
     if jobindex is None:
         raise ValueError("Job not found.")
     currentjob = jobs[jobindex]
     documentindex = next((x for x in range(len(currentjob.documentdetails)) if currentjob.documentdetails[x].id == document_id), None) #Find list element by value of class value
-    #if documentindex is not None:
     if documentindex is None:
         raise ValueError("Document not found.")
     if currentjob.documentdetails[documentindex].status == StatusEnum.done_annotated:
