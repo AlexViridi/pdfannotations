@@ -68,7 +68,7 @@ Response:
 ...or the status of all jobs:
 ```bash
 curl -X 'GET' \
-  'http://127.0.0.1:8000/annotationjobs' \
+  'http://127.0.0.1:80/annotationjobs' \
   -H 'accept: application/json'
 ```
 Response:
@@ -101,7 +101,7 @@ Document `"status": 4` (`done_annotated = 4`) indicates that the text was found 
 If document status equals 4, the annotated document can be downloaded (filename: original file name + suffix "_anno"):
 ```bash
 curl -X 'GET' \
-  'http://127.0.0.1:8000/annotationjobs/0d8e9361-4c75-4879-8269-482ccf8c1994/documents/fc6d6261-7e57-4471-b465-1cb769a399e3' \
+  'http://127.0.0.1:80/annotationjobs/0d8e9361-4c75-4879-8269-482ccf8c1994/documents/fc6d6261-7e57-4471-b465-1cb769a399e3' \
   -H 'accept: */*'
 ```
 Response:
@@ -110,7 +110,7 @@ Response:
 After downloading the annotated documents the job and its documents shall be deleted:
 ```bash
 curl -X 'DELETE' \
-  'http://127.0.0.1:8000/annotationjobs/0d8e9361-4c75-4879-8269-482ccf8c1994' \
+  'http://127.0.0.1:80/annotationjobs/0d8e9361-4c75-4879-8269-482ccf8c1994' \
   -H 'accept: application/json'
 ```
 ## deployment
